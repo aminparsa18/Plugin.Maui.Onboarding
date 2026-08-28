@@ -4,6 +4,8 @@ An app-tour / walkthrough control for .NET MAUI: a dark scrim with a spotlight
 hole cut into it, moving from control to control with a tooltip card
 explaining each one — the classic "coach mark" first-run tour.
 
+![Demo](demo.gif)
+
 ## How it's meant to be used
 
 Mark the controls you want to spotlight with `OnboardingTargetBehavior`:

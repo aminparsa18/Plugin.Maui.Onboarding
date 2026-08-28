@@ -1,0 +1,62 @@
+name: Publish NuGet Package
+
+# Builds and pushes the Plugin.Maui.Onboarding package to nuget.org.
+#
+# Publishing uses NuGet Trusted Publishing (OIDC) instead of a stored API
+# key: the job requests a short-lived GitHub OIDC token, exchanges it with
+# nuget.org for a temporary API key, then uses that to push. See
+# https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing
+#
+# One-time setup required before this workflow can push successfully:
+#   1. On nuget.org: username -> Trusted Publishing -> Add policy
+#        Repository Owner: aminparsa18
+#        Repository:       Plugin.Maui.Onboarding
+#        Workflow File:    publish.yml
+#        Environment:      release
+#   2. In this GitHub repo: Settings -> Secrets and variables -> Actions ->
+#      New repository secret named NUGET_USER, value = your nuget.org
+#      profile username (not your email).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: macos-latest
+    environment: release
+    permissions:
+      id-token: write # required to request the GitHub OIDC token
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install MAUI workloads
+        run: dotnet workload install maui-android maui-ios
+
+      - name: Pack
+        run: >
+          dotnet pack
+          src/Plugin.Maui.Onboarding/Plugin.Maui.Onboarding.csproj
+          -c Release -o ./nupkg
+
+      - name: NuGet login (OIDC -> temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: NuGet push
+        run: >
+          dotnet nuget push ./nupkg/*.nupkg
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
