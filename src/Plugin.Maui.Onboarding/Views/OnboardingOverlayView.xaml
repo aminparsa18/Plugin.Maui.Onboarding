@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Plugin.Maui.Onboarding.Views"
+             x:Class="Plugin.Maui.Onboarding.Views.OnboardingOverlayView">
+
+    <!-- SafeAreaEdges="None" — Grid (like all Layouts) defaults to "Container" in .NET 10, which pads
+         inward from the status bar/notch/home indicator. That inset must NOT apply here: the spotlight
+         hole's position comes from OnboardingBoundsExtensions.GetAbsoluteBounds(), which returns true
+         screen coordinates, so this canvas's local (0,0) must also be true screen (0,0) or the hole
+         renders offset by the safe-area inset (observed as ~40px too low on iOS). -->
+    <!-- x:Name="RootGrid" — the OnboardingTooltipCard child is added/removed from code-behind, a fresh
+         instance per step (see UpdateStepAsync), not declared statically here. A reused instance's live
+         Height was observed permanently freezing after its first arrange pass on Android — never
+         re-computing for later Title/Description changes no matter how explicitly invalidated — so
+         every step gets its own instance instead, each getting a genuine first-ever layout pass. -->
+    <Grid x:Name="RootGrid" SafeAreaEdges="None">
+        <!-- Scrim + spotlight cutout, painted by SpotlightDrawable (assigned in code-behind). -->
+        <GraphicsView x:Name="ScrimCanvas" HorizontalOptions="Fill" VerticalOptions="Fill" />
+    </Grid>
+</ContentView>

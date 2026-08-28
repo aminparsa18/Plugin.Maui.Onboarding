@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Plugin.Maui.Onboarding.Views"
+             x:Class="Plugin.Maui.Onboarding.Views.OnboardingHostPage"
+             BackgroundColor="Transparent"
+             SafeAreaEdges="None">
+
+    <!-- Pushed once (not per step) via Shell.Current.Navigation.PushModalAsync, above Shell's entire
+         content, and reused for the lifetime of the app across every future tour — see
+         OnboardingOverlayHost. Window.Page itself is never touched, so Shell.Current, the flyout,
+         tab navigation, and any Mopups popup keep working exactly as before. -->
+    <views:OnboardingOverlayView x:Name="OverlayView" />
+</ContentPage>

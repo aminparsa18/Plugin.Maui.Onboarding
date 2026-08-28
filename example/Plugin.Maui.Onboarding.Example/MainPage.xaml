@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:onboarding="clr-namespace:Plugin.Maui.Onboarding;assembly=Plugin.Maui.Onboarding"
+             x:Class="Plugin.Maui.Onboarding.Example.MainPage"
+             Title="Onboarding"
+             Shell.NavBarIsVisible="False">
+
+    <!-- A tiny "notes" app mockup — just enough real UI (search, a filter button, a list, an add FAB)
+         to give OnboardingTargetBehavior something worth spotlighting. The tour itself is built and
+         started in MainPage.xaml.cs. -->
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
+          RowSpacing="0">
+
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0"
+                              Padding="24,32,24,4"
+                              Spacing="4">
+            <Label Text="My Notes"
+                   FontSize="28"
+                   FontAttributes="Bold" />
+            <Label Text="A sample app for trying the onboarding tour."
+                   FontSize="13"
+                   TextColor="{StaticResource Gray500}" />
+        </VerticalStackLayout>
+
+        <!-- Search + filter row -->
+        <Grid Grid.Row="1"
+              Padding="20,16,20,8"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="12">
+
+            <Border Grid.Column="0"
+                    Stroke="{StaticResource Gray300}"
+                    StrokeThickness="1"
+                    Padding="14,0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <Border.Behaviors>
+                    <onboarding:OnboardingTargetBehavior Key="SearchBar" />
+                </Border.Behaviors>
+
+                <Entry Placeholder="Search notes"
+                       HeightRequest="44"
+                       BackgroundColor="Transparent" />
+            </Border>
+
+            <Button Grid.Column="1"
+                    Text="&#x2699;"
+                    FontSize="18"
+                    WidthRequest="44"
+                    HeightRequest="44"
+                    Padding="0"
+                    CornerRadius="22"
+                    BackgroundColor="{StaticResource Gray100}"
+                    TextColor="{StaticResource Gray900}">
+                <Button.Behaviors>
+                    <onboarding:OnboardingTargetBehavior Key="FilterButton" />
+                </Button.Behaviors>
+            </Button>
+        </Grid>
+
+        <!-- List -->
+        <Grid Grid.Row="2">
+            <ScrollView Padding="20,8,20,20">
+                <VerticalStackLayout Spacing="12">
+                    <VerticalStackLayout.Behaviors>
+                        <onboarding:OnboardingTargetBehavior Key="ItemsList" />
+                    </VerticalStackLayout.Behaviors>
+
+                    <Border StrokeThickness="1" Stroke="{StaticResource Gray200}" Padding="16,12">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Grocery list" FontAttributes="Bold" />
+                            <Label Text="Milk, eggs, coffee, bread" FontSize="13" TextColor="{StaticResource Gray500}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border StrokeThickness="1" Stroke="{StaticResource Gray200}" Padding="16,12">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Trip ideas" FontAttributes="Bold" />
+                            <Label Text="Portugal, Iceland, Japan" FontSize="13" TextColor="{StaticResource Gray500}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border StrokeThickness="1" Stroke="{StaticResource Gray200}" Padding="16,12">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Book club" FontAttributes="Bold" />
+                            <Label Text="Discuss chapters 4-6 on Friday" FontSize="13" TextColor="{StaticResource Gray500}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <!-- Floating "add" button -->
+            <Button Text="+"
+                    FontSize="26"
+                    WidthRequest="56"
+                    HeightRequest="56"
+                    Padding="0"
+                    CornerRadius="28"
+                    Margin="0,0,20,20"
+                    HorizontalOptions="End"
+                    VerticalOptions="End"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="{StaticResource White}">
+                <Button.Behaviors>
+                    <onboarding:OnboardingTargetBehavior Key="AddButton" />
+                </Button.Behaviors>
+            </Button>
+        </Grid>
+
+        <!-- Footer: replay the tour on demand -->
+        <Button Grid.Row="3"
+                Text="Replay onboarding tour"
+                Margin="20,0,20,20"
+                BackgroundColor="Transparent"
+                TextColor="{StaticResource Primary}"
+                Clicked="OnReplayTourClicked" />
+
+    </Grid>
+
+</ContentPage>

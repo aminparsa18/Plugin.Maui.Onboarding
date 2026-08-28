@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/example/">
+    <Project Path="example/Plugin.Maui.Onboarding.Example/Plugin.Maui.Onboarding.Example.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Plugin.Maui.Onboarding/Plugin.Maui.Onboarding.csproj" />
+  </Folder>
+</Solution>
