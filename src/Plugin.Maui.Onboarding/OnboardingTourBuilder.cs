@@ -1,6 +1,6 @@
 namespace Plugin.Maui.Onboarding;
 
-/// <summary>Fluent builder for an <see cref="OnboardingTour"/> — stamps <see cref="OnboardingStep.IsLastStep"/> on <see cref="Build"/>.</summary>
+/// <summary>Fluent builder for an <see cref="OnboardingTour"/>.</summary>
 public sealed class OnboardingTourBuilder
 {
     private readonly string _key;
@@ -16,11 +16,5 @@ public sealed class OnboardingTourBuilder
         return this;
     }
 
-    public OnboardingTour Build()
-    {
-        if (_steps.Count > 0)
-            _steps[^1] = _steps[^1] with { IsLastStep = true };
-
-        return new OnboardingTour(_key, _steps.AsReadOnly());
-    }
+    public OnboardingTour Build() => new(_key, _steps.AsReadOnly());
 }

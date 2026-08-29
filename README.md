@@ -42,6 +42,13 @@ completed (via `Preferences`) once the user finishes or skips it, so
 `StartTourIfNotCompletedAsync` won't show it again. Call `ReplayTourAsync` to
 force it to run again regardless of completion state.
 
+Hold one `OnboardingCoordinator` instance for as long as its host page (or a
+longer-lived scope, e.g. a DI singleton) is alive — the way the example app
+keeps one as a field on `MainPage` — rather than creating and discarding one
+per tour. It isn't `IDisposable`; the only thing to actually avoid is
+discarding an instance while `IsTourActive` is true, since its overlay would
+have no other way to get popped off the navigation stack.
+
 ### Customizing colors
 
 The scrim and tooltip card both render with sensible defaults (`#B3000000`

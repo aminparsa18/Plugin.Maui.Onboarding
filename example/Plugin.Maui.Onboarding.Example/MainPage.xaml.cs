@@ -28,7 +28,7 @@ public partial class MainPage : ContentPage
     /// Walks four controls tagged with <see cref="OnboardingTargetBehavior"/> in MainPage.xaml, in
     /// on-screen order, then a fifth on <see cref="SettingsPage"/> - exercising a tour step whose
     /// <see cref="OnboardingStep.RequiredRoute"/> navigates to a different page before its target is
-    /// resolved. <see cref="OnboardingTourBuilder"/> stamps <c>IsLastStep</c> on the final step.
+    /// resolved.
     /// </summary>
     private static OnboardingTour BuildTour() =>
         OnboardingTourBuilder.Create("MainPageTour")
