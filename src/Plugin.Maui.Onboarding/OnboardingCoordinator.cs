@@ -16,6 +16,16 @@ public sealed class OnboardingCoordinator
     // genuinely never going to appear.
     private static readonly TimeSpan TargetResolveTimeout = TimeSpan.FromSeconds(10);
 
+    // Serializes StartTourIfNotCompletedAsync/ReplayTourAsync/NextAsync/SkipAsync - the only entry points
+    // that mutate _tour/_stepIndex/_resolvedGeometries - so one call's state changes can't interleave with
+    // another's. Without this, e.g. two overlapping ReplayTourAsync calls can have the second one's
+    // CompleteAsync() null out _resolvedGeometries while the first is still mid-loop writing into it by
+    // index, throwing IndexOutOfRangeException. Only acquired here, at the public surface: BeginAsync/
+    // AdvanceAsync/CompleteAsync are private and only ever called from a method that already holds it, so
+    // they never re-acquire it themselves (SemaphoreSlim isn't reentrant - acquiring it twice on the same
+    // logical call chain would deadlock).
+    private readonly SemaphoreSlim _gate = new(1, 1);
+
     private readonly OnboardingOverlayHost _host = new();
     private readonly OnboardingTargetLocator _locator = new();
     private bool _isSubscribed;
@@ -57,29 +67,64 @@ public sealed class OnboardingCoordinator
     /// <summary>No-ops if a tour is already active or this one's already been completed.</summary>
     public async Task StartTourIfNotCompletedAsync(OnboardingTour tour, CancellationToken ct = default)
     {
-        if (IsTourActive || tour.Steps.Count == 0 || OnboardingCompletionStore.IsCompleted(tour.Key))
-            return;
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (IsTourActive || tour.Steps.Count == 0 || OnboardingCompletionStore.IsCompleted(tour.Key))
+                return;
 
-        await BeginAsync(tour, ct);
+            await BeginAsync(tour, ct);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     /// <summary>Resets the tour's completion flag and restarts it, skipping any tour currently in progress first.</summary>
     public async Task ReplayTourAsync(OnboardingTour tour, CancellationToken ct = default)
     {
-        if (IsTourActive)
-            await SkipAsync();
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (IsTourActive)
+                await CompleteAsync();
 
-        OnboardingCompletionStore.SetCompleted(tour.Key, false);
-        await BeginAsync(tour, ct);
+            OnboardingCompletionStore.SetCompleted(tour.Key, false);
+            await BeginAsync(tour, ct);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
-    public Task NextAsync() => AdvanceAsync(CancellationToken.None);
+    public async Task NextAsync()
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            await AdvanceAsync(CancellationToken.None);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
     /// <summary>Also marks the tour completed — matches "Done" semantics, so it won't nag again.</summary>
     public async Task SkipAsync()
     {
-        if (IsTourActive)
-            await CompleteAsync();
+        await _gate.WaitAsync();
+        try
+        {
+            if (IsTourActive)
+                await CompleteAsync();
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private async Task BeginAsync(OnboardingTour tour, CancellationToken ct)
@@ -161,7 +206,9 @@ public sealed class OnboardingCoordinator
         _resolvedGeometries = [];
     }
 
-    private void OnNextRequested(object? sender, EventArgs e) => _ = RunAndLogAsync(() => AdvanceAsync(CancellationToken.None));
+    // Routed through the public NextAsync/SkipAsync (not AdvanceAsync/CompleteAsync directly) so a tooltip
+    // tap is serialized by _gate the same as any other entry point - see _gate's doc comment.
+    private void OnNextRequested(object? sender, EventArgs e) => _ = RunAndLogAsync(NextAsync);
 
     private void OnSkipRequested(object? sender, EventArgs e) => _ = RunAndLogAsync(SkipAsync);
 

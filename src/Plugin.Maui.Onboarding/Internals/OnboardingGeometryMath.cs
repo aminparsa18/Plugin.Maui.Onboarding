@@ -7,8 +7,12 @@ namespace Plugin.Maui.Onboarding.Internals;
 /// </summary>
 public static class OnboardingGeometryMath
 {
-    /// <summary>Interpolates bounds/corner radius linearly; the shape itself switches at the midpoint
-    /// rather than attempting to morph a rectangle into a circle.</summary>
+    /// <summary>Interpolates bounds/corner radius linearly; the shape itself doesn't morph (e.g. rectangle
+    /// into circle) - it holds <paramref name="from"/>'s shape for the whole transition and only switches
+    /// to <paramref name="to"/>'s shape on the final frame (t = 1), the same frame the bounds finish
+    /// arriving. Switching mid-transition instead (e.g. at t = 0.5) would pop the hole's outline from one
+    /// shape to the other while it's still visibly sliding/resizing, which is far more noticeable than a
+    /// switch that lands in the same instant the move animation settles.</summary>
     public static SpotlightGeometry Lerp(SpotlightGeometry from, SpotlightGeometry to, double t)
     {
         t = Math.Clamp(t, 0, 1);
@@ -20,7 +24,7 @@ public static class OnboardingGeometryMath
             from.Bounds.Height + ((to.Bounds.Height - from.Bounds.Height) * t));
 
         double cornerRadius = from.CornerRadius + ((to.CornerRadius - from.CornerRadius) * t);
-        OnboardingSpotlightShape shape = t < 0.5 ? from.Shape : to.Shape;
+        OnboardingSpotlightShape shape = t < 1 ? from.Shape : to.Shape;
 
         return new SpotlightGeometry(bounds, shape, cornerRadius);
     }
@@ -39,6 +43,8 @@ public static class OnboardingGeometryMath
 
         bool fitsBelow = spaceBelow >= tooltip.Height;
         bool fitsAbove = spaceAbove >= tooltip.Height;
+        bool fitsRight = spaceRight >= tooltip.Width;
+        bool fitsLeft = spaceLeft >= tooltip.Width;
 
         if (fitsBelow && (!fitsAbove || spaceBelow >= spaceAbove))
             return OnboardingTooltipPlacement.Below;
@@ -46,6 +52,14 @@ public static class OnboardingGeometryMath
         if (fitsAbove)
             return OnboardingTooltipPlacement.Above;
 
+        if (fitsRight && (!fitsLeft || spaceRight >= spaceLeft))
+            return OnboardingTooltipPlacement.Right;
+
+        if (fitsLeft)
+            return OnboardingTooltipPlacement.Left;
+
+        // Nothing actually fits (spotlight too large relative to the screen) - fall back to whichever
+        // side has the most room; ComputeTooltipOrigin still clamps the result to stay on-screen.
         return spaceRight >= spaceLeft ? OnboardingTooltipPlacement.Right : OnboardingTooltipPlacement.Left;
     }
 
