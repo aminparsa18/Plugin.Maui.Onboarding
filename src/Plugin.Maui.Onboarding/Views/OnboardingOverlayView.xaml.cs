@@ -100,8 +100,11 @@ public partial class OnboardingOverlayView : ContentView
     /// <summary>Called by <see cref="OnboardingHostPage"/>'s hardware-back handling.</summary>
     public void RequestSkip() => SkipRequested?.Invoke(this, EventArgs.Empty);
 
-    /// <summary>Animates from the currently-shown geometry (if any) to the new step's, then shows its text.</summary>
-    public async Task UpdateStepAsync(SpotlightGeometry geometry, string title, string description, bool isLastStep)
+    /// <summary>Animates from the currently-shown geometry (if any) to the new step's, then shows its text.
+    /// <paramref name="content"/> is the step's <see cref="OnboardingStep.Content"/> factory (if any) —
+    /// invoked here, once, so every step gets a fresh <see cref="View"/> instance same as the card itself
+    /// (see the comment below), rather than one shared instance being reparented across steps/replays.</summary>
+    public async Task UpdateStepAsync(SpotlightGeometry geometry, string title, string description, bool isLastStep, Func<View>? content)
     {
         StartPulse();
 
@@ -129,6 +132,7 @@ public partial class OnboardingOverlayView : ContentView
             Title = title,
             Description = description,
             IsLastStep = isLastStep,
+            StepContent = content?.Invoke(),
             NextCommand = new Command(() => NextRequested?.Invoke(this, EventArgs.Empty)),
             SkipCommand = new Command(() => SkipRequested?.Invoke(this, EventArgs.Empty))
         };

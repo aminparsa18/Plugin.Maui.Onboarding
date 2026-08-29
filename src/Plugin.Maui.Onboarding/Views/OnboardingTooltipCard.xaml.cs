@@ -14,6 +14,12 @@ public partial class OnboardingTooltipCard : ContentView
     public static readonly BindableProperty IsLastStepProperty =
         BindableProperty.Create(nameof(IsLastStep), typeof(bool), typeof(OnboardingTooltipCard), false, propertyChanged: OnIsLastStepChanged);
 
+    /// <summary>Named "StepContent" rather than "Content" — this type is itself a <see cref="ContentView"/>,
+    /// and "Content" is already its own implicit content property (the <c>&lt;Border&gt;</c> root in the
+    /// XAML). A property named "Content" here would shadow that.</summary>
+    public static readonly BindableProperty StepContentProperty =
+        BindableProperty.Create(nameof(StepContent), typeof(View), typeof(OnboardingTooltipCard));
+
     /// <summary>Baked-in literal default (`#E6000000`) so the card renders sensibly with zero setup —
     /// override via this property (directly, or through <see cref="OnboardingCoordinator.TooltipBackgroundColor"/>)
     /// rather than assuming a host app resource key.</summary>
@@ -57,6 +63,14 @@ public partial class OnboardingTooltipCard : ContentView
     {
         get => (bool)GetValue(IsLastStepProperty);
         set => SetValue(IsLastStepProperty, value);
+    }
+
+    /// <summary>Extra content shown between the description and the Next/Skip buttons, built per step by
+    /// <see cref="OnboardingStep.Content"/>. Null (the default) leaves the row collapsed.</summary>
+    public View? StepContent
+    {
+        get => (View?)GetValue(StepContentProperty);
+        set => SetValue(StepContentProperty, value);
     }
 
     public Color TooltipBackgroundColor
