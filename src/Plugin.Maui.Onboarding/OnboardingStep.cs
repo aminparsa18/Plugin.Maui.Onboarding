@@ -2,7 +2,7 @@ namespace Plugin.Maui.Onboarding;
 
 /// <summary>
 /// One stop of an <see cref="OnboardingTour"/> — a control to spotlight plus the text explaining it.
-/// Built via <see cref="OnboardingTourBuilder"/>, which stamps <see cref="IsLastStep"/>.
+/// Built via <see cref="OnboardingTourBuilder"/>.
 /// </summary>
 public sealed record OnboardingStep
 {
@@ -25,7 +25,4 @@ public sealed record OnboardingStep
     /// target — null means the target is expected to already be on screen from the previous step.
     /// </summary>
     public string? RequiredRoute { get; init; }
-
-    /// <summary>Stamped by <see cref="OnboardingTourBuilder.Build"/> — true for the tour's final step.</summary>
-    public bool IsLastStep { get; internal set; }
 }

@@ -41,10 +41,13 @@ owns. The library requires a Shell-based host app — the coordinator pushes
 its overlay via `Shell.Current.Navigation`.
 
 **Tour model** (immutable, built once): `OnboardingTour` (record: `Key` +
-ordered `OnboardingStep`s) is assembled via `OnboardingTourBuilder`, which
-stamps `IsLastStep` on the final step at `.Build()`. Each `OnboardingStep`
-names a `TargetKey`, spotlight shape/corner radius/padding, and an optional
-`RequiredRoute` to navigate to first.
+ordered `OnboardingStep`s) is assembled via `OnboardingTourBuilder`. Each
+`OnboardingStep` names a `TargetKey`, spotlight shape/corner radius/padding,
+and an optional `RequiredRoute` to navigate to first. Which step is "last"
+(Next vs. Done on the tooltip) isn't stamped on the model — the coordinator
+computes it at display time (`OnboardingCoordinator.IsLastDisplayedStep`),
+since the literal last configured step and the last one actually *shown* can
+diverge if that step's target never resolves.
 
 **Marking targets**: `OnboardingTargetBehavior` (attached via XAML to any
 `VisualElement`) registers/unregisters itself by key into the static,
@@ -61,14 +64,24 @@ first step declares a `RequiredRoute`) entirely before the overlay is
 shown/updated for it: this is deliberate and non-obvious, since once the
 modal covers the page, native bounds lookups against some controls behind it
 (observed with `CollectionView`'s RecyclerView) can stall indefinitely
-rather than merely delay, so waiting it out post-push isn't a fix.
+rather than merely delay, so waiting it out post-push isn't a fix. Every
+step within a segment resolves concurrently (`Task.WhenAll`), not one at a
+time — otherwise a segment with several missing targets would take up to
+(missing targets) × the locator's 10s timeout serially before anything
+shows; concurrently the worst case is a single 10s regardless of how many
+are missing.
 `BeginAsync` resolves the first segment before ever pushing the overlay;
 `AdvanceAsync` notices when it's about to cross into an unresolved segment
 (`_stepIndex >= _resolvedThroughExclusive`) and, when it does, pops the
 overlay, resolves the new segment, then re-pushes it —
 `OnboardingOverlayHost.ShowAsync` resets the overlay's geometry on every
 re-push, which incidentally also stops the step-to-step move animation from
-lerping across the page transition. `OnboardingTargetLocator.ResolveBoundsAsync`
+lerping across the page transition. Both resolution sites go through
+`ResolveSegmentOrAbandonAsync`, which ends the tour (not marked completed)
+and rethrows if resolution fails or is cancelled partway — without it,
+`_tour` would stay non-null with the overlay hidden or never shown, leaving
+`IsTourActive` stuck true with no Skip button on screen to recover through.
+`OnboardingTargetLocator.ResolveBoundsAsync`
 polls every 75ms (10s timeout) and requires **two consecutive matching
 bounds reads** before trusting a position, because virtualizing containers
 can report a valid non-zero size from an early measure pass before their
@@ -103,11 +116,15 @@ clamped to the screen) plus its connecting arrow.
 
 **Advancing/completing**: `OnboardingCoordinator.AdvanceAsync` steps
 through the pre-resolved geometries; reaching the end (or `SkipAsync`)
-calls `CompleteAsync`, which marks the tour completed via
-`Internals.OnboardingCompletionStore` (a `Preferences`-backed JSON blob,
+calls `EndTourAsync(markCompleted: true)`, which marks the tour completed
+via `Internals.OnboardingCompletionStore` (a `Preferences`-backed JSON blob,
 keyed by tour `Key` — no host-app persistence dependency) and pops the
 modal. `StartTourIfNotCompletedAsync` checks that store first;
-`ReplayTourAsync` resets it and restarts unconditionally. Next/Skip taps
+`ReplayTourAsync` resets the requested tour's flag and restarts
+unconditionally — if a *different* tour is currently active, it's ended via
+`EndTourAsync(markCompleted: false)` first, since being interrupted by a
+replay of another tour isn't the same as being finished or skipped, and
+shouldn't silently mark it completed. Next/Skip taps
 from the tooltip card are fire-and-forget event handlers
 (`OnNextRequested`/`OnSkipRequested`) routed through `RunAndLogAsync` so an
 exception doesn't silently vanish mid-tour — it at least reaches
