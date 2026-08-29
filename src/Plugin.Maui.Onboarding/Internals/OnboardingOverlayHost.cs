@@ -125,6 +125,6 @@ public sealed class OnboardingOverlayHost
         }
     }
 
-    public Task UpdateStepAsync(SpotlightGeometry geometry, string title, string description, bool isLastStep)
-        => _page?.Overlay.UpdateStepAsync(geometry, title, description, isLastStep) ?? Task.CompletedTask;
+    public Task UpdateStepAsync(SpotlightGeometry geometry, string title, string description, bool isLastStep, Func<View>? content)
+        => _page?.Overlay.UpdateStepAsync(geometry, title, description, isLastStep, content) ?? Task.CompletedTask;
 }

@@ -15,7 +15,7 @@
 	<PropertyGroup>
 		<!-- NuGet package metadata -->
 		<PackageId>Plugin.Maui.Onboarding</PackageId>
-		<Version>0.1.0</Version>
+		<Version>0.2.0</Version>
 		<Title>Onboarding for .NET MAUI</Title>
 		<Description>An app-tour / walkthrough control for .NET MAUI.</Description>
 		<PackageTags>maui;onboarding;tour;walkthrough;tooltip;spotlight;ios;android</PackageTags>

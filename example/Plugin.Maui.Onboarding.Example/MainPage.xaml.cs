@@ -58,7 +58,25 @@ public partial class MainPage : ContentPage
                 TargetKey = "AddButton",
                 Title = "Add a note",
                 Description = "Tap the plus button any time to create a new note.",
-                Shape = OnboardingSpotlightShape.Circle
+                Shape = OnboardingSpotlightShape.Circle,
+                // Exercises OnboardingStep.Content: arbitrary extra content shown between the
+                // description and the Next/Skip buttons. A factory (not a pre-built view) so a fresh
+                // instance is created each time this step is displayed - see OnboardingStep.Content's docs.
+                Content = () => new VerticalStackLayout
+                {
+                    Spacing = 6,
+                    Children =
+                    {
+                        new Image { Source = "dotnet_bot.png", HeightRequest = 90, Aspect = Aspect.AspectFit },
+                        new Label
+                        {
+                            Text = "Tip: swipe a note to delete it.",
+                            FontSize = 12,
+                            TextColor = Colors.White,
+                            HorizontalTextAlignment = TextAlignment.Center
+                        }
+                    }
+                }
             })
             .AddStep(new OnboardingStep
             {

@@ -7,6 +7,7 @@
 
     <ContentView.Resources>
         <internals:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+        <internals:NullToBoolConverter x:Key="NullToBoolConverter" />
     </ContentView.Resources>
 
     <!-- Plain BindableProperty-in / ICommand-out ContentView, no events. -->
@@ -28,7 +29,7 @@
             <Shadow Brush="#FFFFFF" Offset="0,4" Radius="14" Opacity="0.3" />
         </Border.Shadow>
 
-        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*">
             <Label Text="{Binding Source={x:Reference this}, Path=Title}"
                    FontSize="16" FontAttributes="Bold"
                    TextColor="White"
@@ -39,13 +40,20 @@
                    TextColor="#CCCCCC"
                    AutomationId="OnboardingDescriptionLabel" />
 
+            <!-- Hosts the step's optional Content (see OnboardingStep.Content) — collapsed (no reserved
+                 space) whenever a step doesn't supply one, via NullToBoolConverter. -->
+            <ContentView Grid.Row="2" Margin="0,10,0,0"
+                         Content="{Binding Source={x:Reference this}, Path=StepContent}"
+                         IsVisible="{Binding Source={x:Reference this}, Path=StepContent, Converter={StaticResource NullToBoolConverter}}"
+                         AutomationId="OnboardingStepContentHost" />
+
             <!-- Skip and Next both set TextColor explicitly (like everything else on this card) rather
                  than falling through to the host app's implicit Button style, which would otherwise leak
                  in here — the plugin can't assume what that style looks like, or even that Next would
                  stay legible against TooltipBackgroundColor above. Skip renders lighter/dimmer
                  (translucent white, regular weight) as the de-emphasized action; Next stays solid white
                  and bold as the primary one. -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+            <Grid Grid.Row="3" ColumnDefinitions="*,Auto">
                 <Button Grid.Column="0" Text="{Binding Source={x:Reference this}, Path=SkipText}"
                         IsVisible="{Binding Source={x:Reference this}, Path=IsLastStep, Converter={StaticResource InvertedBoolConverter}}"
                         HorizontalOptions="Start" BackgroundColor="Transparent"

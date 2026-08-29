@@ -218,7 +218,7 @@ public sealed class OnboardingCoordinator
         }
 
         OnboardingStep step = _tour.Steps[_stepIndex];
-        await _host.UpdateStepAsync(geometry, step.Title, step.Description, IsLastDisplayedStep(_stepIndex));
+        await _host.UpdateStepAsync(geometry, step.Title, step.Description, IsLastDisplayedStep(_stepIndex), step.Content);
     }
 
     /// <summary>
