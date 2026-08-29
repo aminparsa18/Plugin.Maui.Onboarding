@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:onboarding="clr-namespace:Plugin.Maui.Onboarding;assembly=Plugin.Maui.Onboarding"
+             x:Class="Plugin.Maui.Onboarding.Example.SettingsPage"
+             Title="Settings">
+
+    <!-- Reached only via the onboarding tour's RequiredRoute (see MainPage.xaml.cs BuildTour) - exists to
+         demo a tour step that spans pages, not as a real settings screen. Unlike MainPage this leaves the
+         Shell nav bar visible, so its back button is the way back to MainPage. -->
+    <VerticalStackLayout Padding="24,32"
+                          Spacing="16">
+        <Label Text="Settings"
+               FontSize="28"
+               FontAttributes="Bold" />
+        <Label Text="A second page, to demo a tour step reached via RequiredRoute."
+               FontSize="13"
+               TextColor="{StaticResource Gray500}" />
+
+        <Border Stroke="{StaticResource Gray300}"
+                StrokeThickness="1"
+                Padding="16,12">
+            <Border.StrokeShape>
+                <RoundRectangle CornerRadius="12" />
+            </Border.StrokeShape>
+            <Border.Behaviors>
+                <onboarding:OnboardingTargetBehavior Key="ThemeToggle" />
+            </Border.Behaviors>
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Grid.Column="0"
+                       Text="Dark theme"
+                       VerticalOptions="Center" />
+                <Switch Grid.Column="1" />
+            </Grid>
+        </Border>
+    </VerticalStackLayout>
+
+</ContentPage>

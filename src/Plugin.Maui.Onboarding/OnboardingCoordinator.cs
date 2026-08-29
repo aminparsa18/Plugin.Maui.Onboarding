@@ -33,9 +33,16 @@ public sealed class OnboardingCoordinator
     private OnboardingTour? _tour;
     private int _stepIndex = -1;
 
-    // Resolved for every step BEFORE the overlay modal is pushed — see BeginAsync. null at an index
-    // means that step's target never appeared and AdvanceAsync skips it.
+    // Bounds are resolved per "segment" (a contiguous run of steps sharing a page — see
+    // ResolveSegmentAsync/IsSegmentStart) rather than for the whole tour up front. AdvanceAsync always
+    // checks _stepIndex against _resolvedThroughExclusive before reading this array (see below), so by
+    // construction _stepIndex is already resolved whenever it's read — a null entry there unambiguously
+    // means "that step's target never appeared", never "not resolved yet". AdvanceAsync skips those.
     private SpotlightGeometry?[] _resolvedGeometries = [];
+
+    // Exclusive index up to which segments have been resolved so far. AdvanceAsync compares _stepIndex
+    // against this to notice when it's about to cross into a segment that hasn't been resolved yet.
+    private int _resolvedThroughExclusive;
 
     public bool IsTourActive => _tour is not null;
 
@@ -99,12 +106,17 @@ public sealed class OnboardingCoordinator
         }
     }
 
-    public async Task NextAsync()
+    /// <summary>
+    /// Advancing can now cross into a not-yet-resolved page segment (see <see cref="ResolveSegmentAsync"/>)
+    /// and block on bounds resolution for up to the locator's timeout — <paramref name="ct"/> lets a
+    /// caller cancel that wait, the same as <see cref="StartTourIfNotCompletedAsync"/>/<see cref="ReplayTourAsync"/> already allow.
+    /// </summary>
+    public async Task NextAsync(CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
-            await AdvanceAsync(CancellationToken.None);
+            await AdvanceAsync(ct);
         }
         finally
         {
@@ -113,9 +125,9 @@ public sealed class OnboardingCoordinator
     }
 
     /// <summary>Also marks the tour completed — matches "Done" semantics, so it won't nag again.</summary>
-    public async Task SkipAsync()
+    public async Task SkipAsync(CancellationToken ct = default)
     {
-        await _gate.WaitAsync();
+        await _gate.WaitAsync(ct);
         try
         {
             if (IsTourActive)
@@ -134,30 +146,9 @@ public sealed class OnboardingCoordinator
 
         _tour = tour;
         _stepIndex = -1;
-
-        // Resolve every step's target bounds BEFORE the overlay modal is pushed. Once the modal covers
-        // the page, native bounds lookups against some controls behind it (observed with a CollectionView
-        // — its RecyclerView) can stall indefinitely rather than merely being delayed, regardless of how
-        // long the locator is willing to wait — so waiting it out post-push isn't a fix. Resolving
-        // everything up front, while the page is still fully on-screen and uncovered (completely
-        // ordinary layout conditions, nothing exotic), sidesteps that entirely. Steps with a
-        // RequiredRoute still navigate first — for a single-page tour like today's this all happens
-        // before anything is shown, so there's no visible flicker; a future cross-page tour would show
-        // its own brief tab-switching here before the overlay ever appears, which is an acceptable and
-        // separate concern from today's bug.
         _resolvedGeometries = new SpotlightGeometry?[tour.Steps.Count];
-        for (int i = 0; i < tour.Steps.Count; i++)
-        {
-            OnboardingStep step = tour.Steps[i];
-
-            if (step.RequiredRoute is not null && Shell.Current is not null)
-                await Shell.Current.GoToAsync(step.RequiredRoute);
-
-            Rect? bounds = await _locator.ResolveBoundsAsync(step.TargetKey, TargetResolveTimeout, ct);
-            _resolvedGeometries[i] = bounds is { } b
-                ? new SpotlightGeometry(Inflate(b, step.SpotlightPadding), step.Shape, step.CornerRadius)
-                : null; // target never appeared — AdvanceAsync skips this index
-        }
+        // Resolve the first segment before the overlay is ever shown — see ResolveSegmentAsync.
+        _resolvedThroughExclusive = await ResolveSegmentAsync(0, ct);
 
         if (!_isSubscribed)
         {
@@ -182,6 +173,18 @@ public sealed class OnboardingCoordinator
             return;
         }
 
+        if (_stepIndex >= _resolvedThroughExclusive)
+        {
+            // Crossing into a not-yet-resolved segment (a different page). Pop the overlay first so the
+            // upcoming navigate + bounds-resolution happens against a fully uncovered page — see
+            // ResolveSegmentAsync — then re-push. ShowAsync resets the overlay's geometry on every
+            // re-push, which incidentally also stops the move animation from lerping across the page
+            // transition.
+            await _host.HideAsync();
+            _resolvedThroughExclusive = await ResolveSegmentAsync(_stepIndex, ct);
+            await _host.ShowAsync();
+        }
+
         SpotlightGeometry? geometry = _resolvedGeometries[_stepIndex];
         if (geometry is null)
         {
@@ -204,13 +207,51 @@ public sealed class OnboardingCoordinator
         _tour = null;
         _stepIndex = -1;
         _resolvedGeometries = [];
+        _resolvedThroughExclusive = 0;
     }
+
+    /// <summary>
+    /// Resolves bounds for one "segment": <paramref name="startIndex"/> plus every following step up to
+    /// (not including) the next one that starts a new segment (<see cref="IsSegmentStart"/>) — navigating
+    /// first via <c>Shell.Current.GoToAsync</c> for any step that declares a
+    /// <see cref="OnboardingStep.RequiredRoute"/>. Must run to completion before the overlay is shown or
+    /// updated for any step in the segment it resolves — once the modal covers a page, native bounds
+    /// lookups against some controls behind it (observed with a CollectionView's RecyclerView) can stall
+    /// indefinitely rather than merely being delayed, regardless of how long the locator is willing to
+    /// wait, so resolving only ever happens while the target page is fully uncovered. Returns the
+    /// exclusive end index of the segment (the next segment's first index, or <c>tour.Steps.Count</c> if
+    /// this was the last one).
+    /// </summary>
+    private async Task<int> ResolveSegmentAsync(int startIndex, CancellationToken ct)
+    {
+        OnboardingTour tour = _tour!;
+        int i = startIndex;
+        do
+        {
+            OnboardingStep step = tour.Steps[i];
+
+            if (step.RequiredRoute is not null && Shell.Current is not null)
+                await Shell.Current.GoToAsync(step.RequiredRoute);
+
+            Rect? bounds = await _locator.ResolveBoundsAsync(step.TargetKey, TargetResolveTimeout, ct);
+            _resolvedGeometries[i] = bounds is { } b
+                ? new SpotlightGeometry(Inflate(b, step.SpotlightPadding), step.Shape, step.CornerRadius)
+                : null; // target never appeared — AdvanceAsync skips this index
+
+            i++;
+        } while (i < tour.Steps.Count && !IsSegmentStart(tour.Steps[i]));
+
+        return i;
+    }
+
+    /// <summary>A segment starts at step 0, or any step with a non-null <see cref="OnboardingStep.RequiredRoute"/>.</summary>
+    private static bool IsSegmentStart(OnboardingStep step) => step.RequiredRoute is not null;
 
     // Routed through the public NextAsync/SkipAsync (not AdvanceAsync/CompleteAsync directly) so a tooltip
     // tap is serialized by _gate the same as any other entry point - see _gate's doc comment.
-    private void OnNextRequested(object? sender, EventArgs e) => _ = RunAndLogAsync(NextAsync);
+    private void OnNextRequested(object? sender, EventArgs e) => _ = RunAndLogAsync(() => NextAsync());
 
-    private void OnSkipRequested(object? sender, EventArgs e) => _ = RunAndLogAsync(SkipAsync);
+    private void OnSkipRequested(object? sender, EventArgs e) => _ = RunAndLogAsync(() => SkipAsync());
 
     /// <summary>
     /// Fire-and-forget event handlers (Next/Skip taps) discard the returned Task, so an exception
