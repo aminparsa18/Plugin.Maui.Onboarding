@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Plugin.Maui.Onboarding.Internals;
 
 /// <summary>
@@ -9,13 +11,17 @@ public sealed class OnboardingTargetLocator
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(75);
 
-    /// <summary>Returns null on timeout — the caller should skip the step rather than hang the tour.</summary>
+    /// <summary>
+    /// Returns null on timeout — the caller should skip the step rather than hang the tour. Cancellation
+    /// via <paramref name="ct"/> throws <see cref="OperationCanceledException"/> instead of returning
+    /// null, so callers can tell "target never appeared" apart from "the tour itself was cancelled".
+    /// </summary>
     public async Task<Rect?> ResolveBoundsAsync(string targetKey, TimeSpan timeout, CancellationToken ct = default)
     {
-        DateTime deadline = DateTime.UtcNow + timeout;
+        Stopwatch elapsed = Stopwatch.StartNew();
         Rect? previousCandidate = null;
 
-        while (DateTime.UtcNow < deadline)
+        while (elapsed.Elapsed < timeout)
         {
             bool found = OnboardingTargetRegistry.TryGet(targetKey, out VisualElement? element);
             bool hasHandler = found && element?.Handler?.PlatformView is not null;
@@ -39,24 +45,22 @@ public sealed class OnboardingTargetLocator
             // seconds on a CollectionView whose content is still settling) shouldn't discard an already
             // ­accepted candidate and restart the two-consecutive-reads count from scratch.
 
-            try
-            {
-                await Task.Delay(PollInterval, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                return null;
-            }
+            await Task.Delay(PollInterval, ct);
         }
 
         return null;
     }
 
-    private static bool IsClose(Rect a, Rect b, double tolerance = 1.0)
-        => Math.Abs(a.X - b.X) < tolerance
-           && Math.Abs(a.Y - b.Y) < tolerance
-           && Math.Abs(a.Width - b.Width) < tolerance
-           && Math.Abs(a.Height - b.Height) < tolerance;
+    private static bool IsClose(Rect a, Rect b)
+    {
+        const double positionTolerance = 1.0;
+        const double sizeTolerance = 1.0;
+
+        return Math.Abs(a.X - b.X) < positionTolerance
+               && Math.Abs(a.Y - b.Y) < positionTolerance
+               && Math.Abs(a.Width - b.Width) < sizeTolerance
+               && Math.Abs(a.Height - b.Height) < sizeTolerance;
+    }
 
     private static bool IsVisibleInHierarchy(VisualElement element)
     {
