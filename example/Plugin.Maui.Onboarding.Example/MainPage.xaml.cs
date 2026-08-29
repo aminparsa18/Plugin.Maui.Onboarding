@@ -25,8 +25,10 @@ public partial class MainPage : ContentPage
         => await _onboarding.ReplayTourAsync(BuildTour());
 
     /// <summary>
-    /// Walks the four controls tagged with <see cref="OnboardingTargetBehavior"/> in MainPage.xaml, in
-    /// on-screen order. <see cref="OnboardingTourBuilder"/> stamps <c>IsLastStep</c> on the final step.
+    /// Walks four controls tagged with <see cref="OnboardingTargetBehavior"/> in MainPage.xaml, in
+    /// on-screen order, then a fifth on <see cref="SettingsPage"/> - exercising a tour step whose
+    /// <see cref="OnboardingStep.RequiredRoute"/> navigates to a different page before its target is
+    /// resolved. <see cref="OnboardingTourBuilder"/> stamps <c>IsLastStep</c> on the final step.
     /// </summary>
     private static OnboardingTour BuildTour() =>
         OnboardingTourBuilder.Create("MainPageTour")
@@ -57,6 +59,14 @@ public partial class MainPage : ContentPage
                 Title = "Add a note",
                 Description = "Tap the plus button any time to create a new note.",
                 Shape = OnboardingSpotlightShape.Circle
+            })
+            .AddStep(new OnboardingStep
+            {
+                TargetKey = "ThemeToggle",
+                Title = "More settings",
+                Description = "Some tour steps live on a different page entirely - this one navigates there first.",
+                RequiredRoute = nameof(SettingsPage),
+                Shape = OnboardingSpotlightShape.RoundedRectangle
             })
             .Build();
 }

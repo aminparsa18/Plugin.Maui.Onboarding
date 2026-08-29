@@ -63,6 +63,34 @@ for `ScrimColor` specifically, that also means it still falls back to any
 `onboarding_scrim_light`/`onboarding_scrim_dark` app resources, the way it did
 before this API existed.
 
+### Multi-page tours
+
+A step can set `RequiredRoute` to navigate somewhere before that step's
+target is resolved — a tour doesn't have to stay on one page:
+
+```csharp
+.AddStep(new OnboardingStep
+{
+    TargetKey = "ThemeToggle",
+    Title = "More settings",
+    Description = "Tap here to change your theme.",
+    RequiredRoute = "SettingsPage" // Shell.Current.GoToAsync("SettingsPage")
+})
+```
+
+Steps are grouped into "segments" — a new one starts at the first step and at
+every step with a `RequiredRoute`. Each segment's bounds are fully resolved
+(navigating first, if needed) *before* the overlay is shown or updated for
+it; the overlay briefly hides while a later segment is being resolved. This
+exists because resolving bounds for a target still covered by the overlay's
+modal can, for some controls, stall indefinitely — so resolution always
+happens with the target page fully uncovered, one page at a time.
+
+`TargetKey`s must be unique across the *entire* tour, not just per page —
+the target registry is a single process-wide table keyed only by string,
+with no page scoping, so reusing a key on two pages silently shadows the
+first registration.
+
 ## Prerequisites
 
 - A Shell-based app (`OnboardingCoordinator` pushes its overlay via
